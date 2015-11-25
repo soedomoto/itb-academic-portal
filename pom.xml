@@ -3,6 +3,124 @@
   <groupId>id.ac.itb</groupId>
   <artifactId>itb-academic-portal</artifactId>
   <version>0.0.1-SNAPSHOT</version>
+  
+  <build>
+  	<plugins>
+  		<!-- Compiler -->
+		<plugin>
+			<artifactId>maven-compiler-plugin</artifactId>
+			<version>3.1</version>
+			<configuration>
+				<source>1.7</source>
+				<target>1.7</target>
+			</configuration>
+		</plugin>
+		<!-- Jar Plugin -->
+		<plugin>
+			<artifactId>maven-jar-plugin</artifactId>
+			<configuration>
+				<excludes>
+					<exclude>**/conf/</exclude>
+				</excludes>
+				<archive>
+					<manifest>
+						<addClasspath>true</addClasspath>
+					<classpathPrefix>lib/</classpathPrefix>
+					<mainClass>id.ac.itb.academic.AcademicPortalApplication</mainClass>
+					</manifest>
+				</archive>
+			</configuration>
+		</plugin>
+		<!-- Copy all dependencies into /lib directory under project -->
+		<plugin>
+			<groupId>org.apache.maven.plugins</groupId>
+		<artifactId>maven-dependency-plugin</artifactId>
+		<version>2.1</version>
+		<executions>
+			<execution>
+				<id>copy-dependencies</id>
+				<phase>package</phase>
+				<goals>
+					<goal>copy-dependencies</goal>
+				</goals>
+				<configuration>
+					<outputDirectory>${project.build.directory}/lib</outputDirectory>
+					<overWriteReleases>false</overWriteReleases>
+					<overWriteSnapshots>false</overWriteSnapshots>
+					<overWriteIfNewer>true</overWriteIfNewer>
+				</configuration>
+			</execution>
+		</executions>
+		</plugin>
+		<!-- Copy resources -->
+		<plugin>
+			<artifactId>maven-resources-plugin</artifactId>
+			<version>2.7</version>
+			<executions>
+				<execution>
+					<id>copy-conf</id>
+					<phase>validate</phase>
+					<goals>
+						<goal>copy-resources</goal>
+					</goals>
+					<configuration>
+						<outputDirectory>${project.build.directory}/conf</outputDirectory>
+						<resources>
+							<resource>
+								<directory>${basedir}/conf</directory>
+							</resource>
+						</resources>              
+					</configuration> 
+				</execution>
+				<execution>
+					<id>copy-cert</id>
+					<phase>validate</phase>
+					<goals>
+						<goal>copy-resources</goal>
+					</goals>
+					<configuration>
+						<outputDirectory>${project.build.directory}/cert</outputDirectory>
+						<resources>
+							<resource>
+								<directory>${basedir}/cert</directory>
+							</resource>
+						</resources>              
+					</configuration> 
+				</execution>
+			</executions>
+		</plugin>
+  	</plugins>
+  	
+  	<pluginManagement>
+	    <plugins>
+			<plugin>
+				<groupId>org.eclipse.m2e</groupId>
+				<artifactId>lifecycle-mapping</artifactId>
+				<version>1.0.0</version>
+				<configuration>
+					<lifecycleMappingMetadata>
+						<pluginExecutions>
+							<pluginExecution>
+								<pluginExecutionFilter>
+								    <groupId>org.apache.maven.plugins</groupId>
+								    <artifactId>maven-dependency-plugin</artifactId>
+								    <versionRange>[2.0,)</versionRange>
+								    <goals>
+								        <goal>copy-dependencies</goal>
+								    </goals>
+								</pluginExecutionFilter>
+								<action>
+								    <execute />
+								</action>
+							</pluginExecution>
+						</pluginExecutions>
+					</lifecycleMappingMetadata>
+				</configuration>
+			</plugin>
+	    </plugins>
+	</pluginManagement>
+  </build>
+
   <dependencies>
   	<dependency>
   		<groupId>org.springframework.boot</groupId>
