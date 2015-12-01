@@ -1,7 +1,6 @@
 package id.ac.itb.academic.service;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -23,6 +22,7 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
+import org.docx4j.openpackaging.exceptions.Docx4JException;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.slf4j.Logger;
@@ -79,11 +79,57 @@ public class ClassResourceService {
 				public void run() {
 					if(ext.equalsIgnoreCase("pdf")) {
 						LOG.info("Start converting " + detail.getFileName() + " to image(s)...");
+						
 						try {
-							ImageConverter.fromPdf(outfile.getAbsolutePath(), new FileInputStream(outpath));
+							ImageConverter.fromPdf(outfile);
 						} catch (FileNotFoundException e) {
-							LOG.error("Error in converting " + detail.getFileName() + " to image(s)...");
+							LOG.error("Error in converting {} to image(s). Message : {}", 
+									detail.getFileName(), 
+									e.getMessage());
 						}
+						
+						LOG.info("Finished converting " + detail.getFileName() + " to image(s)...");
+					}
+					
+					else if(ext.equalsIgnoreCase("docx")) {
+						LOG.info("Start converting " + detail.getFileName() + " to image(s)...");
+						
+						try {
+							ImageConverter.fromDocx(outfile);
+						} catch (Exception e) {
+							LOG.error("Error in converting {} to image(s). Message : {}", 
+									detail.getFileName(), 
+									e.getMessage());
+						}
+						
+						LOG.info("Finished converting " + detail.getFileName() + " to image(s)...");
+					}
+					
+					else if(ext.equalsIgnoreCase("xlsx")) {
+						LOG.info("Start converting " + detail.getFileName() + " to image(s)...");
+						
+						try {
+							ImageConverter.fromXlsx(outfile);
+						} catch (Exception e) {
+							LOG.error("Error in converting {} to image(s). Message : {}", 
+									detail.getFileName(), 
+									e.getMessage());
+						}
+						
+						LOG.info("Finished converting " + detail.getFileName() + " to image(s)...");
+					}
+					
+					else if(ext.equalsIgnoreCase("pptx")) {
+						LOG.info("Start converting " + detail.getFileName() + " to image(s)...");
+						
+						try {
+							ImageConverter.fromPptx(outfile);
+						} catch (Exception e) {
+							LOG.error("Error in converting {} to image(s). Message : {}", 
+									detail.getFileName(), 
+									e.getMessage());
+						}
+						
 						LOG.info("Finished converting " + detail.getFileName() + " to image(s)...");
 					}
 				};
