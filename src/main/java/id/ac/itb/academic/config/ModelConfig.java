@@ -17,7 +17,7 @@ import com.j256.ormlite.table.TableUtils;
 
 import id.ac.itb.academic.model.TUser;
 
-@Configuration
+//@Configuration
 @PropertySource(value = { "classpath:application.properties" })
 public class ModelConfig {
 	
