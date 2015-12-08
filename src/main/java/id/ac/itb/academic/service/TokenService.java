@@ -18,7 +18,7 @@ import javax.ws.rs.core.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
-import id.ac.itb.academic.model.TUser;
+//import id.ac.itb.academic.model.TUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -47,7 +47,7 @@ public class TokenService {
 			SimpleDateFormat dt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S");
 			
 			String token = Jwts.builder()
-					.setAudience(((TUser) request.getSession().getAttribute("authuser")).getNip().toString())
+					//.setAudience(((TUser) request.getSession().getAttribute("authuser")).getNip().toString())
 					.setExpiration(exp)
 					.signWith(SignatureAlgorithm.HS512, rsaKey)
 					.compact();

@@ -15,9 +15,7 @@ import com.j256.ormlite.spring.DaoFactory;
 import com.j256.ormlite.table.TableInfo;
 import com.j256.ormlite.table.TableUtils;
 
-import id.ac.itb.academic.model.TUser;
-
-//@Configuration
+@Configuration
 @PropertySource(value = { "classpath:application.properties" })
 public class ModelConfig {
 	
@@ -38,21 +36,19 @@ public class ModelConfig {
 		return conn;
 	}
 	
-	@Bean(name = "userDao")
+	/*@Bean(name = "userDao")
 	@DependsOn("connectionSource")
 	public Dao<TUser, Object> userDao() throws SQLException {
 		Dao<TUser, Object> userDao = DaoFactory.createDao(conn(), TUser.class);
 		
 		if(! userDao.isTableExists()) {
-			// Do create table
 			TableUtils.createTable(userDao.getConnectionSource(), userDao.getDataClass());
 		} else {
-			// Do alter table
 			TableInfo<TUser, Object> info = ((BaseDaoImpl<TUser, Object>) userDao).getTableInfo();
 			// userDao.executeRaw("ALTER TABLE " + info.getTableName() + " ADD IF NOT EXISTS supervisor_id INTEGER DEFAULT NULL");
 		}
 		
 		return userDao;
-	}
+	}*/
 	
 }
