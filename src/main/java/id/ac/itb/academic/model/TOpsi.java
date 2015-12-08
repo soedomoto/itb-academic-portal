@@ -5,7 +5,7 @@ import com.j256.ormlite.table.DatabaseTable;
 
 @DatabaseTable(tableName="opsi")
 public class TOpsi {
-	@DatabaseField
+	@DatabaseField(id=true)
 	String kdOpsi;
 	@DatabaseField
 	String opsi;

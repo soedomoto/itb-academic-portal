@@ -20,4 +20,64 @@ public class TBahanKuliah {
 	String deskripsi;
 	@DatabaseField
 	Date tanggalUpload;
+	
+	public TBahanKuliah() {}
+	
+	public TBahanKuliah(TPelaksanaanKuliah pelaksanaan, String file, String path, String deskripsi,
+			Date tanggalUpload) {
+		super();
+		this.pelaksanaan = pelaksanaan;
+		this.file = file;
+		this.path = path;
+		this.deskripsi = deskripsi;
+		this.tanggalUpload = tanggalUpload;
+	}
+
+	public Integer getKdBahan() {
+		return kdBahan;
+	}
+
+	public void setKdBahan(Integer kdBahan) {
+		this.kdBahan = kdBahan;
+	}
+
+	public TPelaksanaanKuliah getPelaksanaan() {
+		return pelaksanaan;
+	}
+
+	public void setPelaksanaan(TPelaksanaanKuliah pelaksanaan) {
+		this.pelaksanaan = pelaksanaan;
+	}
+
+	public String getFile() {
+		return file;
+	}
+
+	public void setFile(String file) {
+		this.file = file;
+	}
+
+	public String getPath() {
+		return path;
+	}
+
+	public void setPath(String path) {
+		this.path = path;
+	}
+
+	public String getDeskripsi() {
+		return deskripsi;
+	}
+
+	public void setDeskripsi(String deskripsi) {
+		this.deskripsi = deskripsi;
+	}
+
+	public Date getTanggalUpload() {
+		return tanggalUpload;
+	}
+
+	public void setTanggalUpload(Date tanggalUpload) {
+		this.tanggalUpload = tanggalUpload;
+	}
 }

@@ -5,7 +5,7 @@ import com.j256.ormlite.table.DatabaseTable;
 
 @DatabaseTable(tableName="prodi")
 public class TProdi {
-	@DatabaseField
+	@DatabaseField(id=true)
 	String kdProdi;
 	@DatabaseField
 	String prodi;

@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.SQLException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +31,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
+import com.j256.ormlite.dao.Dao;
+import com.j256.ormlite.dao.Dao.CreateOrUpdateStatus;
+
 import id.ac.itb.academic.library.ImageConverter;
+import id.ac.itb.academic.model.TBahanKuliah;
+import id.ac.itb.academic.model.TPelaksanaanKuliah;
 
 @Path("api/class/{classId}/resource")
 public class ClassResourceService {
@@ -39,6 +45,10 @@ public class ClassResourceService {
 	@Autowired
 	@Qualifier("classResourceBasePath")
 	private String basePath;
+	@Autowired
+	private Dao<TBahanKuliah, Object> bahanKuliahDao;
+	@Autowired
+	private Dao<TPelaksanaanKuliah, Object> pelaksanaanKuliahDao;
 	
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
@@ -74,6 +84,16 @@ public class ClassResourceService {
 			LOG.info("Received Class Resource File : " + detail.getFileName());
 			long copiedBytes = IOUtils.copyLarge(uplIS, new FileOutputStream(outpath));
 			response.put("message", "Succesfully uploaded with " + FileUtils.byteCountToDisplaySize(copiedBytes));
+			
+			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));		
+			TBahanKuliah res = new TBahanKuliah(klass, detail.getFileName(), outpath, "Bahan", new Date());
+			
+			CreateOrUpdateStatus cru = bahanKuliahDao.createOrUpdate(res);
+			if(cru.isCreated()) {
+				LOG.info("New resource is successfully added : #{}", res.getKdBahan());
+			} else if(cru.isUpdated()) {
+				LOG.info("Resource is successfully updated : #{}", res.getKdBahan());
+			}
 			
 			new Thread() {
 				public void run() {
@@ -138,6 +158,9 @@ public class ClassResourceService {
 			LOG.error(e.getMessage());
 			response.put("error", "Error in uploading file(s)");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (SQLException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		}
 		
 		return Response.ok(response).build();
