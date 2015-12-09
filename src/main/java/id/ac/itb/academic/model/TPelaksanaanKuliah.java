@@ -18,4 +18,54 @@ public class TPelaksanaanKuliah {
 	Integer sesi;
 	@DatabaseField
 	String ruang;
+	
+	public TPelaksanaanKuliah() {}
+	
+	public TPelaksanaanKuliah(TJadwalKuliah jadwal, Date tanggal, Integer sesi, String ruang) {
+		super();
+		this.jadwal = jadwal;
+		this.tanggal = tanggal;
+		this.sesi = sesi;
+		this.ruang = ruang;
+	}
+
+	public Integer getKdPelaksanaan() {
+		return kdPelaksanaan;
+	}
+
+	public void setKdPelaksanaan(Integer kdPelaksanaan) {
+		this.kdPelaksanaan = kdPelaksanaan;
+	}
+
+	public TJadwalKuliah getJadwal() {
+		return jadwal;
+	}
+
+	public void setJadwal(TJadwalKuliah jadwal) {
+		this.jadwal = jadwal;
+	}
+
+	public Date getTanggal() {
+		return tanggal;
+	}
+
+	public void setTanggal(Date tanggal) {
+		this.tanggal = tanggal;
+	}
+
+	public Integer getSesi() {
+		return sesi;
+	}
+
+	public void setSesi(Integer sesi) {
+		this.sesi = sesi;
+	}
+
+	public String getRuang() {
+		return ruang;
+	}
+
+	public void setRuang(String ruang) {
+		this.ruang = ruang;
+	}
 }

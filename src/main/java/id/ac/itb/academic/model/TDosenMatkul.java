@@ -13,4 +13,36 @@ public class TDosenMatkul {
 	@DatabaseField(columnName="kdMatkul", foreign=true, foreignAutoCreate=true, foreignAutoRefresh=true, 
 			columnDefinition="varchar references matakuliah(kdMatkul) on delete restrict")
 	TMataKuliah matkul;
+	
+	public TDosenMatkul() {}
+
+	public TDosenMatkul(TDosen dosen, TMataKuliah matkul) {
+		super();
+		this.dosen = dosen;
+		this.matkul = matkul;
+	}
+
+	public Integer getKdDosenMatkul() {
+		return kdDosenMatkul;
+	}
+
+	public void setKdDosenMatkul(Integer kdDosenMatkul) {
+		this.kdDosenMatkul = kdDosenMatkul;
+	}
+
+	public TDosen getDosen() {
+		return dosen;
+	}
+
+	public void setDosen(TDosen dosen) {
+		this.dosen = dosen;
+	}
+
+	public TMataKuliah getMatkul() {
+		return matkul;
+	}
+
+	public void setMatkul(TMataKuliah matkul) {
+		this.matkul = matkul;
+	}
 }
