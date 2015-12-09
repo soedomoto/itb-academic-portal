@@ -214,5 +214,11 @@
 		<groupId>org.icepdf</groupId>
 		<version>4.3.3</version>
  	</dependency>
+ 	<!-- Memcached -->
+	<dependency>
+		<groupId>net.spy</groupId>
+		<artifactId>spymemcached</artifactId>
+		<version>2.11.1</version>
+	</dependency>
   </dependencies>
 </project>

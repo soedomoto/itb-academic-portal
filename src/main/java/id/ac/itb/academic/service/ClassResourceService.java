@@ -57,7 +57,7 @@ public class ClassResourceService {
 	
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response listResources(@PathParam("classId") String classId) {
+	public Response listResources(@PathParam("classId") final String classId) {
 		List<Map<String, Object>> responses = new ArrayList<>();
 		
 		try {
@@ -67,13 +67,21 @@ public class ClassResourceService {
 			existingRes.setPelaksanaan(klass);
 			
 			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
-			for(TBahanKuliah res : existingRescs) {
+			for(final TBahanKuliah res : existingRescs) {
 				Map<String, Object> response = new HashMap<>();
 				response.put("kodeBahan", res.getKdBahan());
 				response.put("fileName", res.getFile());
 				response.put("deskripsi", res.getDeskripsi());
 				response.put("tanggalUpload", new SimpleDateFormat("dd-MM-yyyy").format(res.getTanggalUpload()));
-				response.put("detailUrl", String.format("api/class/%s/resource/%s", classId, res.getKdBahan()));
+				//response.put("detailUrl", String.format("api/class/%s/resource/%s", classId, res.getKdBahan()));
+				response.put("availableActions", new HashMap<String, Object>() {
+					private static final long serialVersionUID = 6054270051416719110L;
+					{
+						put("info", String.format("api/class/%s/resource/%s", classId, res.getKdBahan()));
+						put("edit", String.format("api/class/%s/resource/%s/edit", classId, res.getKdBahan()));
+						put("delete", String.format("api/class/%s/resource/%s/delete", classId, res.getKdBahan()));
+					}
+				});
 				
 				responses.add(response);
 			}
@@ -119,7 +127,7 @@ public class ClassResourceService {
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		}
 		
-		response.put("availableFormat", new HashMap<String, Object>() {
+		response.put("availableFormats", new HashMap<String, Object>() {
 			private static final long serialVersionUID = 6054270051416719110L;
 			{
 				put("jpeg", String.format("api/class/%s/resource/%s/jpeg/{page}", classId, id));
@@ -336,7 +344,8 @@ public class ClassResourceService {
 	public Response addResource(
 			@PathParam("classId") String classId, 
 			@FormDataParam("resfile") InputStream uplIS,
-            @FormDataParam("resfile") final FormDataContentDisposition detail
+            @FormDataParam("resfile") final FormDataContentDisposition detail, 
+            @FormDataParam("description") String desc
 	) {
 		Map<String, Object> response = new HashMap<>();
 		response.put("file", detail.getFileName());
@@ -353,7 +362,7 @@ public class ClassResourceService {
 			
 			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));		
 			TBahanKuliah res = new TBahanKuliah(klass, detail.getFileName(), 
-					FilenameUtils.getBaseName(outpath) + "." + ext, "Bahan", new Date());
+					FilenameUtils.getBaseName(outpath) + "." + ext, desc, new Date());
 			
 			CreateOrUpdateStatus cru = bahanKuliahDao.createOrUpdate(res);
 			if(cru.isCreated()) {
@@ -404,16 +413,126 @@ public class ClassResourceService {
 	
 	@GET
 	@Path("{id}/edit")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response editResource(@PathParam("classId") String classId, @PathParam("id") String id) {
-		return Response.ok().build();
+	public Response editResource(
+			@PathParam("classId") String classId, @PathParam("id") String id, 
+			@FormDataParam("resfile") InputStream uplIS,
+            @FormDataParam("resfile") final FormDataContentDisposition detail, 
+            @FormDataParam("description") String desc
+    ) {
+		Map<String, Object> response = new HashMap<>();
+		response.put("file", detail.getFileName());
+		
+		final String ext = FilenameUtils.getExtension(detail.getFileName());
+		final String outpath = basePath + File.separator + new Date().getTime() + "." + ext;
+		final File outfile = new File(outpath);
+		outfile.getParentFile().mkdirs();
+		
+		try {
+			LOG.info("Received Class Resource File : " + detail.getFileName());
+			long copiedBytes = IOUtils.copyLarge(uplIS, new FileOutputStream(outpath));
+			response.put("message", "Succesfully uploaded with " + FileUtils.byteCountToDisplaySize(copiedBytes));
+			
+			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			
+			TBahanKuliah existingRes = new TBahanKuliah();
+			existingRes.setKdBahan(Integer.valueOf(id));
+			existingRes.setPelaksanaan(klass);
+			
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
+			if(existingRescs.size() > 0) {
+				TBahanKuliah res = existingRescs.get(0);
+				res.setFile(detail.getFileName());
+				res.setPath(FilenameUtils.getBaseName(outpath) + "." + ext);
+				res.setDeskripsi("");
+				res.setTanggalUpload(new Date());
+				
+				CreateOrUpdateStatus cru = bahanKuliahDao.createOrUpdate(res);
+				if(cru.isCreated()) {
+					LOG.info("New resource is successfully added : #{}", res.getKdBahan());
+				} else if(cru.isUpdated()) {
+					LOG.info("Resource is successfully updated : #{}", res.getKdBahan());
+				}
+				
+				new Thread() {
+					public void run() {
+						LOG.info("Start converting " + detail.getFileName() + " to image(s)...");
+						
+						try {
+							if(ext.equalsIgnoreCase("pdf")) {
+								ImageConverter.fromPdf(outfile);
+							}
+							else if(ext.equalsIgnoreCase("docx")) {
+								ImageConverter.fromDocx(outfile);
+							}
+							else if(ext.equalsIgnoreCase("xlsx")) {
+								ImageConverter.fromXlsx(outfile);
+							}
+							else if(ext.equalsIgnoreCase("pptx")) {
+								ImageConverter.fromPptx(outfile);
+							}
+						} catch (Exception e) {
+							LOG.error("Error in converting {} to image(s). Message : {}", 
+								detail.getFileName(), 
+								e.getMessage()
+							);
+						}
+						
+						LOG.info("Finished converting " + detail.getFileName() + " to image(s)...");
+					};
+				}.start();
+			} else {
+				response.put("error", String.format("No resource #%s found in class #%s.", id, classId));
+				return Response.status(Status.NOT_FOUND).entity(response).build();
+			}
+		} catch (IOException e) {
+			LOG.error(e.getMessage());
+			response.put("error", "Error in uploading file(s)");
+			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (SQLException e1) {
+			LOG.error(e1.getMessage());
+			response.put("error", "Error in database access");
+			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		}
+		
+		return Response.ok(response).build();
 	}
 	
 	@GET
 	@Path("{id}/delete")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response deleteResource(@PathParam("classId") String classId, @PathParam("id") String id) {
-		return Response.ok().build();
+		Map<String, Object> response = new HashMap<>();
+		
+		try {
+			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			
+			TBahanKuliah existingRes = new TBahanKuliah();
+			existingRes.setKdBahan(Integer.valueOf(id));
+			existingRes.setPelaksanaan(klass);
+			
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
+			if(existingRescs.size() > 0) {
+				TBahanKuliah res = existingRescs.get(0);
+				if(bahanKuliahDao.delete(res) == 1) {
+					response.put("message", String.format("Resource #%s within class #%s is successfully deleted.", 
+							id, classId));
+					return Response.ok(response).build();
+				} else {
+					response.put("message", String.format("Failed delete resource #%s within class #%s.", 
+							id, classId));
+					return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+				}
+			} else {
+				response.put("error", String.format("No resource #%s found in class #%s.", id, classId));
+				return Response.status(Status.NOT_FOUND).entity(response).build();
+			}
+		} catch (SQLException e1) {
+			LOG.error(e1.getMessage());
+			response.put("error", "Error in database access");
+			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		}
 	}
 
 }
