@@ -11,21 +11,21 @@ public class TMataKuliah {
 	String nama;
 	@DatabaseField
 	Integer sks;
-	@DatabaseField(columnName="kdProdi", foreign=true, foreignAutoCreate=true, foreignAutoRefresh=true, 
+	/*@DatabaseField(columnName="kdProdi", foreign=true, foreignAutoCreate=true, foreignAutoRefresh=true, 
 			columnDefinition="varchar references prodi(kdProdi) on delete restrict")
 	TProdi prodi;
 	@DatabaseField(columnName="kdOpsi", foreign=true, foreignAutoCreate=true, foreignAutoRefresh=true, 
 			columnDefinition="varchar references opsi(kdOpsi) on delete restrict")
-	TOpsi opsi;
+	TOpsi opsi;*/
 	
 	public TMataKuliah() {}
 
-	public TMataKuliah(String nama, Integer sks, TProdi prodi, TOpsi opsi) {
+	public TMataKuliah(String nama, Integer sks/*, TProdi prodi, TOpsi opsi*/) {
 		super();
 		this.nama = nama;
 		this.sks = sks;
-		this.prodi = prodi;
-		this.opsi = opsi;
+		/*this.prodi = prodi;
+		this.opsi = opsi;*/
 	}
 
 	public String getKdMatkul() {
@@ -52,7 +52,7 @@ public class TMataKuliah {
 		this.sks = sks;
 	}
 
-	public TProdi getProdi() {
+	/*public TProdi getProdi() {
 		return prodi;
 	}
 
@@ -66,5 +66,5 @@ public class TMataKuliah {
 
 	public void setOpsi(TOpsi opsi) {
 		this.opsi = opsi;
-	}
+	}*/
 }

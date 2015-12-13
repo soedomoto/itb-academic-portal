@@ -1,5 +1,7 @@
 package id.ac.itb.academic.model;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import com.j256.ormlite.field.DatabaseField;
@@ -48,9 +50,17 @@ public class TPelaksanaanKuliah {
 	public Date getTanggal() {
 		return tanggal;
 	}
+	
+	public String getFormatedTanggal() {
+		return new SimpleDateFormat("dd-MM-yyyy").format(tanggal);
+	}
 
 	public void setTanggal(Date tanggal) {
 		this.tanggal = tanggal;
+	}
+	
+	public void setFormatedTanggal(String formatedTanggal) throws ParseException {
+		this.tanggal = new SimpleDateFormat("dd-MM-yyyy").parse(formatedTanggal);
 	}
 
 	public Integer getSesi() {

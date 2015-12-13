@@ -9,4 +9,16 @@ public class TAkun {
 	String username;
 	@DatabaseField
 	String password;
+	
+	public TAkun() {
+		// TODO Auto-generated constructor stub
+	}
+
+	public String getUsername() {
+		return username;
+	}
+
+	public void setUsername(String username) {
+		this.username = username;
+	}
 }

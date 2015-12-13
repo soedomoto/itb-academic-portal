@@ -5,7 +5,7 @@ import com.j256.ormlite.table.DatabaseTable;
 
 @DatabaseTable(tableName="dosenmatkul")
 public class TDosenMatkul {
-	@DatabaseField(generatedId=true)
+	@DatabaseField(id=true)
 	Integer kdDosenMatkul;
 	@DatabaseField(columnName="kdDosen", foreign=true, foreignAutoCreate=true, foreignAutoRefresh=true, 
 			columnDefinition="varchar references dosen(kdDosen) on delete restrict")

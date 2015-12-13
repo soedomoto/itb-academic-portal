@@ -2,6 +2,7 @@ package id.ac.itb.academic.service;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,6 +43,14 @@ import com.j256.ormlite.dao.Dao.CreateOrUpdateStatus;
 import id.ac.itb.academic.library.ImageConverter;
 import id.ac.itb.academic.model.TBahanKuliah;
 import id.ac.itb.academic.model.TPelaksanaanKuliah;
+import id.ac.itb.academic.service.ServiceException.ClassNotFoundException;
+import id.ac.itb.academic.service.ServiceException.DocxNotFoundException;
+import id.ac.itb.academic.service.ServiceException.ImageNotFoundException;
+import id.ac.itb.academic.service.ServiceException.PdfNotFoundException;
+import id.ac.itb.academic.service.ServiceException.PptxNotFoundException;
+import id.ac.itb.academic.service.ServiceException.ResourceNotFoundException;
+import id.ac.itb.academic.service.ServiceException.StreamNotFoundException;
+import id.ac.itb.academic.service.ServiceException.XlsxNotFoundException;;
 
 @Path("api/class/{classId}/resource")
 public class ClassResourceService {
@@ -61,12 +70,13 @@ public class ClassResourceService {
 		List<Map<String, Object>> responses = new ArrayList<>();
 		
 		try {
-			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			if(klass == null) throw new ClassNotFoundException(String.format("Perkuliahan #%s tidak ditemukan", classId));
 			
-			TBahanKuliah existingRes = new TBahanKuliah();
-			existingRes.setPelaksanaan(klass);
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(new TBahanKuliah() {{
+				setPelaksanaan(klass);
+			}});
 			
-			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
 			for(final TBahanKuliah res : existingRescs) {
 				Map<String, Object> response = new HashMap<>();
 				response.put("kodeBahan", res.getKdBahan());
@@ -87,10 +97,13 @@ public class ClassResourceService {
 			}
 		} catch (SQLException e1) {
 			LOG.error(e1.getMessage());
-			
 			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (ClassNotFoundException e) {
+			Map<String, Object> response = new HashMap<>();
+			response.put("error", e.getMessage());
+			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
 		
 		return Response.ok(responses).build();
@@ -99,33 +112,37 @@ public class ClassResourceService {
 	@GET
 	@Path("{id}")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response resourceInfo(@PathParam("classId") final String classId, @PathParam("id") final String id) {
+	public Response resourceInfo(@PathParam("classId") final String classId, @PathParam("id") final Integer id) {
 		Map<String, Object> response = new HashMap<>();
 		
 		try {
-			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			if(klass == null) throw new ClassNotFoundException(
+				String.format("Perkuliahan #%s tidak ditemukan", classId)
+			);
 			
-			TBahanKuliah existingRes = new TBahanKuliah();
-			existingRes.setKdBahan(Integer.valueOf(id));
-			existingRes.setPelaksanaan(klass);
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(new TBahanKuliah() {{
+				setKdBahan(id);
+				setPelaksanaan(klass);
+			}});
 			
-			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
-			if(existingRescs.size() > 0) {
-				TBahanKuliah res = existingRescs.get(0);
-				response.put("kodeBahan", res.getKdBahan());
-				response.put("fileName", res.getFile());
-				response.put("deskripsi", res.getDeskripsi());
-				response.put("tanggalUpload", new SimpleDateFormat("dd-MM-yyyy").format(res.getTanggalUpload()));
-			} else {
-				response.put("error", String.format("No resource #%s found in class #%s. %s.", 
-						id, classId, klass.getJadwal().getDosenMatkul().getMatkul().getNama()));
-				return Response.status(Status.NOT_FOUND).entity(response).build();
-			}
+			if(existingRescs.size() == 0) throw new ResourceNotFoundException(
+					String.format("No resource #%s found in class #%s. %s.", 
+					id, classId, klass.getJadwal().getDosenMatkul().getMatkul().getNama()));
+			
+			TBahanKuliah res = existingRescs.get(0);
+			response.put("kodeBahan", res.getKdBahan());
+			response.put("fileName", res.getFile());
+			response.put("deskripsi", res.getDeskripsi());
+			response.put("tanggalUpload", new SimpleDateFormat("dd-MM-yyyy").format(res.getTanggalUpload()));
 		} catch (SQLException e1) {
 			LOG.error(e1.getMessage());
 			response.put("error", "Error in database access");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
-		}
+		} catch (ClassNotFoundException | ResourceNotFoundException e) {
+			response.put("error", e.getMessage());
+			return Response.status(Status.NOT_FOUND).entity(response).build();
+		} 
 		
 		response.put("availableFormats", new HashMap<String, Object>() {
 			private static final long serialVersionUID = 6054270051416719110L;
@@ -144,196 +161,210 @@ public class ClassResourceService {
 	@GET
 	@Path("{id}/jpeg/{page}")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response resourceViewJpeg(@PathParam("classId") String classId, @PathParam("id") String id, 
+	public Response resourceViewJpeg(@PathParam("classId") String classId, @PathParam("id") final String id, 
 			@PathParam("page") String page) {
 		Map<String, Object> response = new HashMap<>();
 		
 		try {
-			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			if(klass == null) throw new ClassNotFoundException(
+				String.format("Perkuliahan #%s tidak ditemukan", classId)
+			);
 			
-			TBahanKuliah existingRes = new TBahanKuliah();
-			existingRes.setKdBahan(Integer.valueOf(id));
-			existingRes.setPelaksanaan(klass);
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(new TBahanKuliah() {{
+				setKdBahan(Integer.valueOf(id));
+				setPelaksanaan(klass);
+			}});
 			
-			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
-			if(existingRescs.size() > 0) {
-				TBahanKuliah res = existingRescs.get(0);
-				final String jpegPath = basePath + File.separator + FilenameUtils.getBaseName(res.getPath()) + File.separator + page + ".jpg";
-				if(! new File(jpegPath).exists()) {
-					response.put("error", "Image not found.");
-					return Response.status(Status.NOT_FOUND).entity(response).build();
+			if(existingRescs.size() == 0) throw new ResourceNotFoundException(
+					String.format("No resource #%s found in class #%s. %s.", 
+					id, classId, klass.getJadwal().getDosenMatkul().getMatkul().getNama()));
+			
+			TBahanKuliah res = existingRescs.get(0);
+			final String jpegPath = basePath + File.separator + FilenameUtils.getBaseName(res.getPath()) + File.separator + page + ".jpg";
+			if(! new File(jpegPath).exists()) throw new ImageNotFoundException("Image not found");
+			
+			return Response.ok(new StreamingOutput() {
+				@Override
+				public void write(OutputStream output) throws IOException, WebApplicationException {
+					IOUtils.copy(new FileInputStream(new File(jpegPath)), output);
 				}
-				
-				return Response.ok(new StreamingOutput() {
-					@Override
-					public void write(OutputStream output) throws IOException, WebApplicationException {
-						IOUtils.copy(new FileInputStream(new File(jpegPath)), output);
-					}
-				}).type("image/jpeg").build();
-			} else {
-				response.put("error", String.format("No resource #%s found in class #%s.", id, classId));
-				return Response.status(Status.NOT_FOUND).entity(response).build();
-			}
+			}).type("image/jpeg").build();
 		} catch (SQLException e1) {
 			LOG.error(e1.getMessage());
 			response.put("error", "Error in database access");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (ClassNotFoundException | ResourceNotFoundException | ImageNotFoundException e) {
+			response.put("error", e.getMessage());
+			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
 	}
 	
 	@GET
 	@Path("{id}/pdf")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response resourceViewPdf(@PathParam("classId") String classId, @PathParam("id") String id) {
+	public Response resourceViewPdf(@PathParam("classId") String classId, @PathParam("id") final String id) {
 		Map<String, Object> response = new HashMap<>();
 		
 		try {
-			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			if(klass == null) throw new ClassNotFoundException(
+				String.format("Perkuliahan #%s tidak ditemukan", classId)
+			);
 			
-			TBahanKuliah existingRes = new TBahanKuliah();
-			existingRes.setKdBahan(Integer.valueOf(id));
-			existingRes.setPelaksanaan(klass);
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(new TBahanKuliah() {{
+				setKdBahan(Integer.valueOf(id));
+				setPelaksanaan(klass);
+			}});
 			
-			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
-			if(existingRescs.size() > 0) {
-				TBahanKuliah res = existingRescs.get(0);
-				final String pdfPath = basePath + File.separator + FilenameUtils.getBaseName(res.getPath()) + ".pdf";
-				if(! new File(pdfPath).exists()) {
-					response.put("error", "Pdf file not found.");
-					return Response.status(Status.NOT_FOUND).entity(response).build();
+			if(existingRescs.size() == 0) throw new ResourceNotFoundException(
+					String.format("No resource #%s found in class #%s. %s.", 
+					id, classId, klass.getJadwal().getDosenMatkul().getMatkul().getNama()));
+			
+			TBahanKuliah res = existingRescs.get(0);
+			
+			final String pdfPath = basePath + File.separator + FilenameUtils.getBaseName(res.getPath()) + ".pdf";
+			if(! new File(pdfPath).exists()) throw new PdfNotFoundException("PDF not found");
+			
+			return Response.ok(new StreamingOutput() {
+				@Override
+				public void write(OutputStream output) throws IOException, WebApplicationException {
+					IOUtils.copy(new FileInputStream(new File(pdfPath)), output);
 				}
-				
-				return Response.ok(new StreamingOutput() {
-					@Override
-					public void write(OutputStream output) throws IOException, WebApplicationException {
-						IOUtils.copy(new FileInputStream(new File(pdfPath)), output);
-					}
-				}).type("application/pdf").build();
-			} else {
-				response.put("error", String.format("No resource #%s found in class #%s.", id, classId));
-				return Response.status(Status.NOT_FOUND).entity(response).build();
-			}
+			}).type("application/pdf").build();
 		} catch (SQLException e1) {
 			LOG.error(e1.getMessage());
 			response.put("error", "Error in database access");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (ResourceNotFoundException | PdfNotFoundException | ClassNotFoundException e) {
+			response.put("error", e.getMessage());
+			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
 	}
 	
 	@GET
 	@Path("{id}/docx")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response resourceViewDocx(@PathParam("classId") String classId, @PathParam("id") String id) {
+	public Response resourceViewDocx(@PathParam("classId") String classId, @PathParam("id") final String id) {
 		Map<String, Object> response = new HashMap<>();
 		
 		try {
-			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			if(klass == null) throw new ClassNotFoundException(
+				String.format("Perkuliahan #%s tidak ditemukan", classId)
+			);
 			
-			TBahanKuliah existingRes = new TBahanKuliah();
-			existingRes.setKdBahan(Integer.valueOf(id));
-			existingRes.setPelaksanaan(klass);
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(new TBahanKuliah() {{
+				setKdBahan(Integer.valueOf(id));
+				setPelaksanaan(klass);
+			}});
 			
-			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
-			if(existingRescs.size() > 0) {
-				TBahanKuliah res = existingRescs.get(0);
-				final String docxPath = basePath + File.separator + FilenameUtils.getBaseName(res.getPath()) + ".docx";
-				if(! new File(docxPath).exists()) {
-					response.put("error", "Docx file not found.");
-					return Response.status(Status.NOT_FOUND).entity(response).build();
+			if(existingRescs.size() == 0) throw new ResourceNotFoundException(
+					String.format("No resource #%s found in class #%s. %s.", 
+					id, classId, klass.getJadwal().getDosenMatkul().getMatkul().getNama()));
+			
+			TBahanKuliah res = existingRescs.get(0);
+			
+			final String docxPath = basePath + File.separator + FilenameUtils.getBaseName(res.getPath()) + ".docx";
+			if(! new File(docxPath).exists()) throw new DocxNotFoundException("Docx file not found");
+			
+			return Response.ok(new StreamingOutput() {
+				@Override
+				public void write(OutputStream output) throws IOException, WebApplicationException {
+					IOUtils.copy(new FileInputStream(new File(docxPath)), output);
 				}
-				
-				return Response.ok(new StreamingOutput() {
-					@Override
-					public void write(OutputStream output) throws IOException, WebApplicationException {
-						IOUtils.copy(new FileInputStream(new File(docxPath)), output);
-					}
-				}).type("application/vnd.openxmlformats-officedocument.wordprocessingml.document").build();
-			} else {
-				response.put("error", String.format("No resource #%s found in class #%s.", id, classId));
-				return Response.status(Status.NOT_FOUND).entity(response).build();
-			}
+			}).type("application/vnd.openxmlformats-officedocument.wordprocessingml.document").build();
 		} catch (SQLException e1) {
 			LOG.error(e1.getMessage());
 			response.put("error", "Error in database access");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (ResourceNotFoundException | DocxNotFoundException | ClassNotFoundException e) {
+			response.put("error", e.getMessage());
+			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
 	}
 	
 	@GET
 	@Path("{id}/xlsx")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response resourceViewXlsx(@PathParam("classId") String classId, @PathParam("id") String id) {
+	public Response resourceViewXlsx(@PathParam("classId") String classId, @PathParam("id") final String id) {
 		Map<String, Object> response = new HashMap<>();
 		
 		try {
-			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			if(klass == null) throw new ClassNotFoundException(
+				String.format("Perkuliahan #%s tidak ditemukan", classId)
+			);
 			
-			TBahanKuliah existingRes = new TBahanKuliah();
-			existingRes.setKdBahan(Integer.valueOf(id));
-			existingRes.setPelaksanaan(klass);
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(new TBahanKuliah() {{
+				setKdBahan(Integer.valueOf(id));
+				setPelaksanaan(klass);
+			}});
 			
-			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
-			if(existingRescs.size() > 0) {
-				TBahanKuliah res = existingRescs.get(0);
-				final String xlsxPath = basePath + File.separator + FilenameUtils.getBaseName(res.getPath()) + ".xlsx";
-				if(! new File(xlsxPath).exists()) {
-					response.put("error", "Xlsx file not found.");
-					return Response.status(Status.NOT_FOUND).entity(response).build();
+			if(existingRescs.size() == 0) throw new ResourceNotFoundException(
+					String.format("No resource #%s found in class #%s. %s.", 
+					id, classId, klass.getJadwal().getDosenMatkul().getMatkul().getNama()));
+			
+			TBahanKuliah res = existingRescs.get(0);
+			
+			final String docxPath = basePath + File.separator + FilenameUtils.getBaseName(res.getPath()) + ".xlsx";
+			if(! new File(docxPath).exists()) throw new XlsxNotFoundException("Xlsx file not found");
+			
+			return Response.ok(new StreamingOutput() {
+				@Override
+				public void write(OutputStream output) throws IOException, WebApplicationException {
+					IOUtils.copy(new FileInputStream(new File(docxPath)), output);
 				}
-				
-				return Response.ok(new StreamingOutput() {
-					@Override
-					public void write(OutputStream output) throws IOException, WebApplicationException {
-						IOUtils.copy(new FileInputStream(new File(xlsxPath)), output);
-					}
-				}).type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").build();
-			} else {
-				response.put("error", String.format("No resource #%s found in class #%s.", id, classId));
-				return Response.status(Status.NOT_FOUND).entity(response).build();
-			}
+			}).type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").build();
 		} catch (SQLException e1) {
 			LOG.error(e1.getMessage());
 			response.put("error", "Error in database access");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (ResourceNotFoundException | XlsxNotFoundException | ClassNotFoundException e) {
+			response.put("error", e.getMessage());
+			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
 	}
 	
 	@GET
 	@Path("{id}/pptx")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response resourceViewPptx(@PathParam("classId") String classId, @PathParam("id") String id) {
+	public Response resourceViewPptx(@PathParam("classId") String classId, @PathParam("id") final String id) {
 		Map<String, Object> response = new HashMap<>();
 		
 		try {
-			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			if(klass == null) throw new ClassNotFoundException(
+				String.format("Perkuliahan #%s tidak ditemukan", classId)
+			);
 			
-			TBahanKuliah existingRes = new TBahanKuliah();
-			existingRes.setKdBahan(Integer.valueOf(id));
-			existingRes.setPelaksanaan(klass);
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(new TBahanKuliah() {{
+				setKdBahan(Integer.valueOf(id));
+				setPelaksanaan(klass);
+			}});
 			
-			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
-			if(existingRescs.size() > 0) {
-				TBahanKuliah res = existingRescs.get(0);
-				final String pptxPath = basePath + File.separator + FilenameUtils.getBaseName(res.getPath()) + ".pptx";
-				if(! new File(pptxPath).exists()) {
-					response.put("error", "Pptx file not found.");
-					return Response.status(Status.NOT_FOUND).entity(response).build();
+			if(existingRescs.size() == 0) throw new ResourceNotFoundException(
+					String.format("No resource #%s found in class #%s. %s.", 
+					id, classId, klass.getJadwal().getDosenMatkul().getMatkul().getNama()));
+			
+			TBahanKuliah res = existingRescs.get(0);
+			
+			final String docxPath = basePath + File.separator + FilenameUtils.getBaseName(res.getPath()) + ".pptx";
+			if(! new File(docxPath).exists()) throw new PptxNotFoundException("Pptx file not found");
+			
+			return Response.ok(new StreamingOutput() {
+				@Override
+				public void write(OutputStream output) throws IOException, WebApplicationException {
+					IOUtils.copy(new FileInputStream(new File(docxPath)), output);
 				}
-				
-				return Response.ok(new StreamingOutput() {
-					@Override
-					public void write(OutputStream output) throws IOException, WebApplicationException {
-						IOUtils.copy(new FileInputStream(new File(pptxPath)), output);
-					}
-				}).type("application/vnd.openxmlformats-officedocument.presentationml.presentation").build();
-			} else {
-				response.put("error", String.format("No resource #%s found in class #%s.", id, classId));
-				return Response.status(Status.NOT_FOUND).entity(response).build();
-			}
+			}).type("application/vnd.openxmlformats-officedocument.presentationml.presentation").build();
 		} catch (SQLException e1) {
 			LOG.error(e1.getMessage());
 			response.put("error", "Error in database access");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (ResourceNotFoundException | PptxNotFoundException | ClassNotFoundException e) {
+			response.put("error", e.getMessage());
+			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
 	}
 	
@@ -348,19 +379,27 @@ public class ClassResourceService {
             @FormDataParam("description") String desc
 	) {
 		Map<String, Object> response = new HashMap<>();
-		response.put("file", detail.getFileName());
-		
-		final String ext = FilenameUtils.getExtension(detail.getFileName());
-		final String outpath = basePath + File.separator + new Date().getTime() + "." + ext;
-		final File outfile = new File(outpath);
-		outfile.getParentFile().mkdirs();
 		
 		try {
+			if(uplIS == null) throw new StreamNotFoundException(
+				String.format("No uploaded resource found. Double check field name : %s", "resfile"));
+			if(desc == null) desc = "";			
+			
+			response.put("file", detail.getFileName());
+			final String ext = FilenameUtils.getExtension(detail.getFileName());
+			final String outpath = basePath + File.separator + new Date().getTime() + "." + ext;
+			final File outfile = new File(outpath);
+			outfile.getParentFile().mkdirs();
+			
 			LOG.info("Received Class Resource File : " + detail.getFileName());
 			long copiedBytes = IOUtils.copyLarge(uplIS, new FileOutputStream(outpath));
 			response.put("message", "Succesfully uploaded with " + FileUtils.byteCountToDisplaySize(copiedBytes));
 			
-			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));		
+			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			if(klass == null) throw new ClassNotFoundException(
+				String.format("Perkuliahan #%s tidak ditemukan", classId)
+			);
+			
 			TBahanKuliah res = new TBahanKuliah(klass, detail.getFileName(), 
 					FilenameUtils.getBaseName(outpath) + "." + ext, desc, new Date());
 			
@@ -398,8 +437,15 @@ public class ClassResourceService {
 					LOG.info("Finished converting " + detail.getFileName() + " to image(s)...");
 				};
 			}.start();
-		} catch (IOException e) {
-			LOG.error(e.getMessage());
+		} catch (StreamNotFoundException | ClassNotFoundException e) {
+			response.put("error", e.getMessage());
+			return Response.status(Status.NOT_FOUND).entity(response).build();
+		} catch (FileNotFoundException e1) {
+			LOG.error(e1.getMessage());
+			response.put("error", "Error in uploading file(s)");
+			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (IOException e1) {
+			LOG.error(e1.getMessage());
 			response.put("error", "Error in uploading file(s)");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (SQLException e1) {
@@ -416,78 +462,91 @@ public class ClassResourceService {
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response editResource(
-			@PathParam("classId") String classId, @PathParam("id") String id, 
+			@PathParam("classId") String classId, @PathParam("id") final Integer id, 
 			@FormDataParam("resfile") InputStream uplIS,
             @FormDataParam("resfile") final FormDataContentDisposition detail, 
             @FormDataParam("description") String desc
     ) {
 		Map<String, Object> response = new HashMap<>();
-		response.put("file", detail.getFileName());
-		
-		final String ext = FilenameUtils.getExtension(detail.getFileName());
-		final String outpath = basePath + File.separator + new Date().getTime() + "." + ext;
-		final File outfile = new File(outpath);
-		outfile.getParentFile().mkdirs();
 		
 		try {
+			if(uplIS == null) throw new StreamNotFoundException(
+				String.format("No uploaded resource found. Double check field name : %s", "resfile"));
+			if(desc == null) desc = "";			
+			
+			response.put("file", detail.getFileName());
+			final String ext = FilenameUtils.getExtension(detail.getFileName());
+			final String outpath = basePath + File.separator + new Date().getTime() + "." + ext;
+			final File outfile = new File(outpath);
+			outfile.getParentFile().mkdirs();
+			
 			LOG.info("Received Class Resource File : " + detail.getFileName());
 			long copiedBytes = IOUtils.copyLarge(uplIS, new FileOutputStream(outpath));
 			response.put("message", "Succesfully uploaded with " + FileUtils.byteCountToDisplaySize(copiedBytes));
 			
-			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			if(klass == null) throw new ClassNotFoundException(
+				String.format("Perkuliahan #%s tidak ditemukan", classId)
+			);
 			
-			TBahanKuliah existingRes = new TBahanKuliah();
-			existingRes.setKdBahan(Integer.valueOf(id));
-			existingRes.setPelaksanaan(klass);
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(new TBahanKuliah() {{
+				setPelaksanaan(klass);
+				setKdBahan(id);
+			}});
 			
-			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
-			if(existingRescs.size() > 0) {
-				TBahanKuliah res = existingRescs.get(0);
-				res.setFile(detail.getFileName());
-				res.setPath(FilenameUtils.getBaseName(outpath) + "." + ext);
-				res.setDeskripsi("");
-				res.setTanggalUpload(new Date());
-				
-				CreateOrUpdateStatus cru = bahanKuliahDao.createOrUpdate(res);
-				if(cru.isCreated()) {
-					LOG.info("New resource is successfully added : #{}", res.getKdBahan());
-				} else if(cru.isUpdated()) {
-					LOG.info("Resource is successfully updated : #{}", res.getKdBahan());
-				}
-				
-				new Thread() {
-					public void run() {
-						LOG.info("Start converting " + detail.getFileName() + " to image(s)...");
-						
-						try {
-							if(ext.equalsIgnoreCase("pdf")) {
-								ImageConverter.fromPdf(outfile);
-							}
-							else if(ext.equalsIgnoreCase("docx")) {
-								ImageConverter.fromDocx(outfile);
-							}
-							else if(ext.equalsIgnoreCase("xlsx")) {
-								ImageConverter.fromXlsx(outfile);
-							}
-							else if(ext.equalsIgnoreCase("pptx")) {
-								ImageConverter.fromPptx(outfile);
-							}
-						} catch (Exception e) {
-							LOG.error("Error in converting {} to image(s). Message : {}", 
-								detail.getFileName(), 
-								e.getMessage()
-							);
-						}
-						
-						LOG.info("Finished converting " + detail.getFileName() + " to image(s)...");
-					};
-				}.start();
-			} else {
-				response.put("error", String.format("No resource #%s found in class #%s.", id, classId));
-				return Response.status(Status.NOT_FOUND).entity(response).build();
+			if(existingRescs.size() == 0) throw new ResourceNotFoundException(
+					String.format("No resource #%s found in class #%s. %s.", 
+					id, classId, klass.getJadwal().getDosenMatkul().getMatkul().getNama()));
+			
+			TBahanKuliah res = existingRescs.get(0);
+			res.setFile(detail.getFileName());
+			res.setDeskripsi(desc);
+			res.setPath(FilenameUtils.getBaseName(outpath));
+			res.setTanggalUpload(new Date());
+			
+			CreateOrUpdateStatus cru = bahanKuliahDao.createOrUpdate(res);
+			if(cru.isCreated()) {
+				LOG.info("New resource is successfully added : #{}", res.getKdBahan());
+			} else if(cru.isUpdated()) {
+				LOG.info("Resource is successfully updated : #{}", res.getKdBahan());
 			}
-		} catch (IOException e) {
-			LOG.error(e.getMessage());
+			
+			new Thread() {
+				public void run() {
+					LOG.info("Start converting " + detail.getFileName() + " to image(s)...");
+					
+					try {
+						if(ext.equalsIgnoreCase("pdf")) {
+							ImageConverter.fromPdf(outfile);
+						}
+						else if(ext.equalsIgnoreCase("docx")) {
+							ImageConverter.fromDocx(outfile);
+						}
+						else if(ext.equalsIgnoreCase("xlsx")) {
+							ImageConverter.fromXlsx(outfile);
+						}
+						else if(ext.equalsIgnoreCase("pptx")) {
+							ImageConverter.fromPptx(outfile);
+						}
+					} catch (Exception e) {
+						LOG.error("Error in converting {} to image(s). Message : {}", 
+							detail.getFileName(), 
+							e.getMessage()
+						);
+					}
+					
+					LOG.info("Finished converting " + detail.getFileName() + " to image(s)...");
+				};
+			}.start();
+		} catch (StreamNotFoundException | ClassNotFoundException | ResourceNotFoundException e) {
+			response.put("error", e.getMessage());
+			return Response.status(Status.NOT_FOUND).entity(response).build();
+		} catch (FileNotFoundException e1) {
+			LOG.error(e1.getMessage());
+			response.put("error", "Error in uploading file(s)");
+			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (IOException e1) {
+			LOG.error(e1.getMessage());
 			response.put("error", "Error in uploading file(s)");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (SQLException e1) {
@@ -502,36 +561,41 @@ public class ClassResourceService {
 	@GET
 	@Path("{id}/delete")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response deleteResource(@PathParam("classId") String classId, @PathParam("id") String id) {
+	public Response deleteResource(@PathParam("classId") String classId, @PathParam("id") final Integer id) {
 		Map<String, Object> response = new HashMap<>();
 		
 		try {
-			TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
+			if(klass == null) throw new ClassNotFoundException(
+				String.format("Perkuliahan #%s tidak ditemukan", classId)
+			);
 			
-			TBahanKuliah existingRes = new TBahanKuliah();
-			existingRes.setKdBahan(Integer.valueOf(id));
-			existingRes.setPelaksanaan(klass);
+			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(new TBahanKuliah() {{
+				setPelaksanaan(klass);
+				setKdBahan(id);
+			}});
 			
-			List<TBahanKuliah> existingRescs = bahanKuliahDao.queryForMatching(existingRes);
-			if(existingRescs.size() > 0) {
-				TBahanKuliah res = existingRescs.get(0);
-				if(bahanKuliahDao.delete(res) == 1) {
-					response.put("message", String.format("Resource #%s within class #%s is successfully deleted.", 
-							id, classId));
-					return Response.ok(response).build();
-				} else {
-					response.put("message", String.format("Failed delete resource #%s within class #%s.", 
-							id, classId));
-					return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
-				}
+			if(existingRescs.size() == 0) throw new ResourceNotFoundException(
+					String.format("No resource #%s found in class #%s. %s.", 
+					id, classId, klass.getJadwal().getDosenMatkul().getMatkul().getNama()));
+			
+			TBahanKuliah res = existingRescs.get(0);
+			if(bahanKuliahDao.delete(res) == 1) {
+				response.put("message", String.format("Resource #%s. %s within class #%s. %s is successfully deleted.", 
+						id, res.getKdBahan(), classId, klass.getKdPelaksanaan()));
+				return Response.ok(response).build();
 			} else {
-				response.put("error", String.format("No resource #%s found in class #%s.", id, classId));
-				return Response.status(Status.NOT_FOUND).entity(response).build();
+				response.put("message", String.format("Failed delete resource #%s. %s within class #%s. %s", 
+						id, res.getKdBahan(), classId, klass.getKdPelaksanaan()));
+				return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 			}
 		} catch (SQLException e1) {
 			LOG.error(e1.getMessage());
 			response.put("error", "Error in database access");
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
+		} catch (ClassNotFoundException | ResourceNotFoundException e) {
+			response.put("error", e.getMessage());
+			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
 	}
 

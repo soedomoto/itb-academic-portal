@@ -17,4 +17,48 @@ public class TAbsensiDosen {
 	String materi;
 	@DatabaseField
 	String statusHadir;
+	
+	public TAbsensiDosen() {
+		// TODO Auto-generated constructor stub
+	}
+
+	public Integer getKdAbsensi() {
+		return kdAbsensi;
+	}
+
+	public void setKdAbsensi(Integer kdAbsensi) {
+		this.kdAbsensi = kdAbsensi;
+	}
+
+	public TDosen getDosen() {
+		return dosen;
+	}
+
+	public void setDosen(TDosen dosen) {
+		this.dosen = dosen;
+	}
+
+	public TPelaksanaanKuliah getPelaksanaan() {
+		return pelaksanaan;
+	}
+
+	public void setPelaksanaan(TPelaksanaanKuliah pelaksanaan) {
+		this.pelaksanaan = pelaksanaan;
+	}
+
+	public String getMateri() {
+		return materi;
+	}
+
+	public void setMateri(String materi) {
+		this.materi = materi;
+	}
+
+	public String getStatusHadir() {
+		return statusHadir;
+	}
+
+	public void setStatusHadir(String statusHadir) {
+		this.statusHadir = statusHadir;
+	}
 }
