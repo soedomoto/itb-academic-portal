@@ -1,5 +1,6 @@
 package id.ac.itb.academic.model;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import com.j256.ormlite.field.DatabaseField;
@@ -75,6 +76,10 @@ public class TBahanKuliah {
 
 	public Date getTanggalUpload() {
 		return tanggalUpload;
+	}
+	
+	public String getStrTanggalUpload() {
+		return new SimpleDateFormat("dd-MM-yyyy").format(getTanggalUpload());
 	}
 
 	public void setTanggalUpload(Date tanggalUpload) {

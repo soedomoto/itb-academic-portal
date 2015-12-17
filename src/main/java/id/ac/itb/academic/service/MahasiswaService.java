@@ -45,50 +45,66 @@ public class MahasiswaService {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response list() {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			List<TMahasiswa> mhses = mahasiswaDao.queryForAll();
 			if(mhses.size() == 0) throw new StudentNotFoundException
 				(String.format("Tidak ada mahasiswa terdaftar. Silahkan input data terlebih dulu"));
 			
-			return Response.ok(mhses).build();
+			success = true;
+			response.put("result", mhses);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (StudentNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
-			response.put("error", e.getCause());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
+			status = Status.NOT_FOUND;
+			response.put("error", e.getMessage());
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getById(@PathParam("id") String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			TMahasiswa mhs = mahasiswaDao.queryForId(id);
 			if(mhs == null) throw new StudentNotFoundException
 				(String.format("Tidak ada mahasiswa #{id} terdaftar", id));
 			
-			return Response.ok(mhs).build();
+			success = true;
+			response.put("result", mhs);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (StudentNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("opsi/{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getByOption(@PathParam("id") String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			final TOpsi opsi = opsiDao.queryForId(id);
 			if(opsi == null) throw new OptionNotFoundException
@@ -100,23 +116,29 @@ public class MahasiswaService {
 			if(currMhs == null) throw new StudentNotFoundException
 				(String.format("Tidak ada mahasiswa yang terdaftar di Opsi #%s", id));
 			
-			return Response.ok(currMhs).build();
+			success = true;
+			response.put("result", currMhs);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (OptionNotFoundException | StudentNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("prodi/{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getByProgram(@PathParam("id") String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			final TProdi prodi = prodiDao.queryForId(id);
 			if(prodi == null) throw new ProgramNotFoundException
@@ -128,23 +150,29 @@ public class MahasiswaService {
 			if(currMhs == null) throw new StudentNotFoundException
 				(String.format("Tidak ada mahasiswa yang terdaftar di Program Studi #%s", id));
 			
-			return Response.ok(currMhs).build();
+			success = true;
+			response.put("result", currMhs);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ProgramNotFoundException | StudentNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("fakultas/{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getByFaculty(@PathParam("id") String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			final TFakultas fakultas = fakultasDao.queryForId(id);
 			if(fakultas == null) throw new FacultyNotFoundException
@@ -168,17 +196,19 @@ public class MahasiswaService {
 			if(allMhses.size() == 0) throw new StudentNotFoundException
 				(String.format("Tidak ada mahasiswa yang terdaftar di Program Studi #%s", id));
 			
-			return Response.ok(allMhses).build();
+			success = true;
+			response.put("result", allMhses);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (FacultyNotFoundException | StudentNotFoundException | ProgramNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 
 }

@@ -46,28 +46,38 @@ public class AbsensiDosenService {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response list() {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			List<TAbsensiDosen> absens = absensiDosenDao.queryForAll();
 			if(absens.size() == 0) throw new PresenceNotFoundException
 			("Tidak ada absensi dosen terekam. Silahkan input data terlebih dulu");
 			
-			return Response.ok(absens).build();
+			success = true;
+			response.put("result", absens);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (PresenceNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getById(@PathParam("id") String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			final TDosen currDosen = dosenDao.queryForId(id);
 			if(currDosen == null) throw new TeacherNotFoundException
@@ -76,23 +86,30 @@ public class AbsensiDosenService {
 			List<TAbsensiDosen> absens = absensiDosenDao.queryForMatching(new TAbsensiDosen() {{
 				setDosen(currDosen);
 			}});
-			return Response.ok(absens).build();
+			
+			success = true;
+			response.put("result", absens);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (TeacherNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("nip/{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getByNip(@PathParam("id") final String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			final List<TDosen> currDosens = dosenDao.queryForMatching(new TDosen() {{
 				setNip(id);
@@ -104,23 +121,30 @@ public class AbsensiDosenService {
 			List<TAbsensiDosen> absens = absensiDosenDao.queryForMatching(new TAbsensiDosen() {{
 				setDosen(currDosens.get(0));
 			}});
-			return Response.ok(absens).build();
+			
+			success = true;
+			response.put("result", absens);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (TeacherNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("tanggal/{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getByDate(@PathParam("id") final String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			final List<TPelaksanaanKuliah> currKuliahs = pelaksanaanKuliahDao.queryForMatching(new TPelaksanaanKuliah() {{
 				setFormatedTanggal(id);
@@ -133,28 +157,34 @@ public class AbsensiDosenService {
 			List<TAbsensiDosen> absens = absensiDosenDao.queryForMatching(new TAbsensiDosen() {{
 				setPelaksanaan(currKuliahs.get(0));
 			}});
-			return Response.ok(absens).build();
+			
+			success = true;
+			response.put("result", absens);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ParseException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Kemungkinan format tanggal salah. Gunakan format : dd-mm-yyyy");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ClassNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("ruang/{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getByRoom(@PathParam("id") final String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			final List<TPelaksanaanKuliah> currKuliahs = pelaksanaanKuliahDao.queryForMatching(new TPelaksanaanKuliah() {{
 				setRuang(id);
@@ -166,23 +196,30 @@ public class AbsensiDosenService {
 			List<TAbsensiDosen> absens = absensiDosenDao.queryForMatching(new TAbsensiDosen() {{
 				setPelaksanaan(currKuliahs.get(0));
 			}});
-			return Response.ok(absens).build();
+			
+			success = true;
+			response.put("result", absens);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (RoomNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		} 
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("hari/{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getByDay(@PathParam("id") final String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			final List<TPelaksanaanKuliah> currKuliahs = pelaksanaanKuliahDao.queryForMatching(new TPelaksanaanKuliah() {{
 				List<TJadwalKuliah> jadwals = jadwalKuliahDao.queryForMatching(new TJadwalKuliah() {{
@@ -201,23 +238,30 @@ public class AbsensiDosenService {
 			List<TAbsensiDosen> absens = absensiDosenDao.queryForMatching(new TAbsensiDosen() {{
 				setPelaksanaan(currKuliahs.get(0));
 			}});
-			return Response.ok(absens).build();
+			
+			success = true;
+			response.put("result", absens);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ScheduleNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		} 
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("hari/{id}/sesi/{sess}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getByDayandSession(@PathParam("id") final String id, @PathParam("sess") final Integer sess) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			final List<TPelaksanaanKuliah> currKuliahs = pelaksanaanKuliahDao.queryForMatching(new TPelaksanaanKuliah() {{
 				List<TJadwalKuliah> jadwals = jadwalKuliahDao.queryForMatching(new TJadwalKuliah() {{
@@ -238,16 +282,19 @@ public class AbsensiDosenService {
 			List<TAbsensiDosen> absens = absensiDosenDao.queryForMatching(new TAbsensiDosen() {{
 				setPelaksanaan(currKuliahs.get(0));
 			}});
-			return Response.ok(absens).build();
+			
+			success = true;
+			response.put("result", absens);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ScheduleNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 }

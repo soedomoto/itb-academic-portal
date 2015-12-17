@@ -8,8 +8,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -67,7 +65,9 @@ public class ClassResourceService {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response listResources(@PathParam("classId") final String classId) {
-		List<Map<String, Object>> responses = new ArrayList<>();
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
 		
 		try {
 			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
@@ -77,36 +77,19 @@ public class ClassResourceService {
 				setPelaksanaan(klass);
 			}});
 			
-			for(final TBahanKuliah res : existingRescs) {
-				Map<String, Object> response = new HashMap<>();
-				response.put("kodeBahan", res.getKdBahan());
-				response.put("fileName", res.getFile());
-				response.put("deskripsi", res.getDeskripsi());
-				response.put("tanggalUpload", new SimpleDateFormat("dd-MM-yyyy").format(res.getTanggalUpload()));
-				//response.put("detailUrl", String.format("api/class/%s/resource/%s", classId, res.getKdBahan()));
-				response.put("availableActions", new HashMap<String, Object>() {
-					private static final long serialVersionUID = 6054270051416719110L;
-					{
-						put("info", String.format("api/class/%s/resource/%s", classId, res.getKdBahan()));
-						put("edit", String.format("api/class/%s/resource/%s/edit", classId, res.getKdBahan()));
-						put("delete", String.format("api/class/%s/resource/%s/delete", classId, res.getKdBahan()));
-					}
-				});
-				
-				responses.add(response);
-			}
-		} catch (SQLException e1) {
-			LOG.error(e1.getMessage());
-			Map<String, Object> response = new HashMap<>();
+			success = true;
+			response.put("result", existingRescs);
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ClassNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
 		
-		return Response.ok(responses).build();
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
@@ -114,6 +97,8 @@ public class ClassResourceService {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response resourceInfo(@PathParam("classId") final String classId, @PathParam("id") final Integer id) {
 		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
 		
 		try {
 			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
@@ -130,21 +115,18 @@ public class ClassResourceService {
 					String.format("No resource #%s found in class #%s. %s.", 
 					id, classId, klass.getJadwal().getDosenMatkul().getMatkul().getNama()));
 			
-			TBahanKuliah res = existingRescs.get(0);
-			response.put("kodeBahan", res.getKdBahan());
-			response.put("fileName", res.getFile());
-			response.put("deskripsi", res.getDeskripsi());
-			response.put("tanggalUpload", new SimpleDateFormat("dd-MM-yyyy").format(res.getTanggalUpload()));
-		} catch (SQLException e1) {
-			LOG.error(e1.getMessage());
+			success = true;
+			response.put("result", existingRescs.get(0));
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ClassNotFoundException | ResourceNotFoundException e) {
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		} 
 		
-		response.put("availableFormats", new HashMap<String, Object>() {
+		response.put("viewFormat", new HashMap<String, Object>() {
 			private static final long serialVersionUID = 6054270051416719110L;
 			{
 				put("jpeg", String.format("api/class/%s/resource/%s/jpeg/{page}", classId, id));
@@ -155,7 +137,8 @@ public class ClassResourceService {
 			}
 		});
 		
-		return Response.ok(response).build();
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
@@ -164,6 +147,8 @@ public class ClassResourceService {
 	public Response resourceViewJpeg(@PathParam("classId") String classId, @PathParam("id") final String id, 
 			@PathParam("page") String page) {
 		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
 		
 		try {
 			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
@@ -190,14 +175,17 @@ public class ClassResourceService {
 					IOUtils.copy(new FileInputStream(new File(jpegPath)), output);
 				}
 			}).type("image/jpeg").build();
-		} catch (SQLException e1) {
-			LOG.error(e1.getMessage());
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ClassNotFoundException | ResourceNotFoundException | ImageNotFoundException e) {
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
@@ -205,6 +193,8 @@ public class ClassResourceService {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response resourceViewPdf(@PathParam("classId") String classId, @PathParam("id") final String id) {
 		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
 		
 		try {
 			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
@@ -232,14 +222,17 @@ public class ClassResourceService {
 					IOUtils.copy(new FileInputStream(new File(pdfPath)), output);
 				}
 			}).type("application/pdf").build();
-		} catch (SQLException e1) {
-			LOG.error(e1.getMessage());
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ResourceNotFoundException | PdfNotFoundException | ClassNotFoundException e) {
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
@@ -247,6 +240,8 @@ public class ClassResourceService {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response resourceViewDocx(@PathParam("classId") String classId, @PathParam("id") final String id) {
 		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
 		
 		try {
 			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
@@ -274,14 +269,17 @@ public class ClassResourceService {
 					IOUtils.copy(new FileInputStream(new File(docxPath)), output);
 				}
 			}).type("application/vnd.openxmlformats-officedocument.wordprocessingml.document").build();
-		} catch (SQLException e1) {
-			LOG.error(e1.getMessage());
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ResourceNotFoundException | DocxNotFoundException | ClassNotFoundException e) {
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
@@ -289,6 +287,8 @@ public class ClassResourceService {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response resourceViewXlsx(@PathParam("classId") String classId, @PathParam("id") final String id) {
 		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
 		
 		try {
 			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
@@ -316,14 +316,17 @@ public class ClassResourceService {
 					IOUtils.copy(new FileInputStream(new File(docxPath)), output);
 				}
 			}).type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").build();
-		} catch (SQLException e1) {
-			LOG.error(e1.getMessage());
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ResourceNotFoundException | XlsxNotFoundException | ClassNotFoundException e) {
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
@@ -331,6 +334,8 @@ public class ClassResourceService {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response resourceViewPptx(@PathParam("classId") String classId, @PathParam("id") final String id) {
 		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
 		
 		try {
 			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
@@ -358,14 +363,17 @@ public class ClassResourceService {
 					IOUtils.copy(new FileInputStream(new File(docxPath)), output);
 				}
 			}).type("application/vnd.openxmlformats-officedocument.presentationml.presentation").build();
-		} catch (SQLException e1) {
-			LOG.error(e1.getMessage());
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ResourceNotFoundException | PptxNotFoundException | ClassNotFoundException e) {
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@POST
@@ -379,6 +387,8 @@ public class ClassResourceService {
             @FormDataParam("description") String desc
 	) {
 		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
 		
 		try {
 			if(uplIS == null) throw new StreamNotFoundException(
@@ -438,23 +448,24 @@ public class ClassResourceService {
 				};
 			}.start();
 		} catch (StreamNotFoundException | ClassNotFoundException e) {
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
-		} catch (FileNotFoundException e1) {
-			LOG.error(e1.getMessage());
+		} catch (FileNotFoundException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in uploading file(s)");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
-		} catch (IOException e1) {
-			LOG.error(e1.getMessage());
+		} catch (IOException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in uploading file(s)");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
-		} catch (SQLException e1) {
-			LOG.error(e1.getMessage());
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		}
 		
-		return Response.ok(response).build();
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
@@ -468,6 +479,8 @@ public class ClassResourceService {
             @FormDataParam("description") String desc
     ) {
 		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
 		
 		try {
 			if(uplIS == null) throw new StreamNotFoundException(
@@ -539,23 +552,24 @@ public class ClassResourceService {
 				};
 			}.start();
 		} catch (StreamNotFoundException | ClassNotFoundException | ResourceNotFoundException e) {
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
-		} catch (FileNotFoundException e1) {
-			LOG.error(e1.getMessage());
+		} catch (FileNotFoundException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in uploading file(s)");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
-		} catch (IOException e1) {
-			LOG.error(e1.getMessage());
+		} catch (IOException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in uploading file(s)");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
-		} catch (SQLException e1) {
-			LOG.error(e1.getMessage());
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		}
 		
-		return Response.ok(response).build();
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
@@ -563,6 +577,8 @@ public class ClassResourceService {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response deleteResource(@PathParam("classId") String classId, @PathParam("id") final Integer id) {
 		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
 		
 		try {
 			final TPelaksanaanKuliah klass = pelaksanaanKuliahDao.queryForId(Integer.valueOf(classId));
@@ -581,22 +597,23 @@ public class ClassResourceService {
 			
 			TBahanKuliah res = existingRescs.get(0);
 			if(bahanKuliahDao.delete(res) == 1) {
-				response.put("message", String.format("Resource #%s. %s within class #%s. %s is successfully deleted.", 
+				response.put("result", String.format("Resource #%s. %s within class #%s. %s is successfully deleted.", 
 						id, res.getKdBahan(), classId, klass.getKdPelaksanaan()));
-				return Response.ok(response).build();
 			} else {
-				response.put("message", String.format("Failed delete resource #%s. %s within class #%s. %s", 
+				response.put("result", String.format("Failed delete resource #%s. %s within class #%s. %s", 
 						id, res.getKdBahan(), classId, klass.getKdPelaksanaan()));
-				return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 			}
-		} catch (SQLException e1) {
-			LOG.error(e1.getMessage());
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (ClassNotFoundException | ResourceNotFoundException e) {
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 
 }

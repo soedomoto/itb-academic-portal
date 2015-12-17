@@ -32,44 +32,87 @@ public class DosenService {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response list() {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			List<TDosen> mhses = dosenDao.queryForAll();
 			if(mhses.size() == 0) throw new TeacherNotFoundException
 				(String.format("Tidak ada dosen terdaftar. Silahkan input data terlebih dulu"));
 			
-			return Response.ok(mhses).build();
+			success = true;
+			response.put("result", mhses);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (TeacherNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 	
 	@GET
 	@Path("{id}")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getById(@PathParam("id") String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
 		try {
 			TDosen mhs = dosenDao.queryForId(id);
 			if(mhs == null) throw new TeacherNotFoundException
-				(String.format("Tidak ada mahasiswa #{id} terdaftar", id));
+				(String.format("Tidak ada dosen #{id} terdaftar", id));
 			
-			return Response.ok(mhs).build();
+			success = true;
+			response.put("result", mhs);
 		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
 			LOG.error(e.getMessage());
-			Map<String, Object> response = new HashMap<>();
 			response.put("error", "Error in database access");
-			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(response).build();
 		} catch (TeacherNotFoundException e) {
-			Map<String, Object> response = new HashMap<>();
+			status = Status.NOT_FOUND;
 			response.put("error", e.getMessage());
-			return Response.status(Status.NOT_FOUND).entity(response).build();
 		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
+	}
+	
+	@GET
+	@Path("nip/{id}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getByNip(@PathParam("id") final String id) {
+		Map<String, Object> response = new HashMap<>();
+		boolean success = false;
+		Status status = Status.OK;
+		
+		try {
+			final List<TDosen> currDosens = dosenDao.queryForMatching(new TDosen() {{
+				setNip(id);
+			}});
+			
+			if(currDosens.size() == 0) throw new TeacherNotFoundException
+				(String.format("Dosen nip %s tidak ditemukan", id));
+			
+			success = true;
+			response.put("result", currDosens.get(0));
+		} catch (SQLException e) {
+			status = Status.INTERNAL_SERVER_ERROR;
+			LOG.error(e.getMessage());
+			response.put("error", "Error in database access");
+		} catch (TeacherNotFoundException e) {
+			status = Status.NOT_FOUND;
+			response.put("error", e.getMessage());
+		}
+		
+		response.put("success", success);
+		return Response.status(status).entity(response).build();
 	}
 
 }
